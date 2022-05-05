@@ -62,8 +62,8 @@ void mqtt_reconnect() {
   if (mqtt_isConnected())
     return;
   // Loop until we're reconnected
-  if (millis() - mqttReconnectTimer > MQTT_RECONNECT_STANDBY) {
-    mqttReconnectTimer = millis();
+  if (AsyncDelay_HasMillisElapsed(mqttReconnectTimer, MQTT_RECONNECT_STANDBY)) {
+    AsyncDelay_StartTimer(&mqttReconnectTimer);
 #ifdef DEBUG_SERIAL_PRINT
     Serial.print("Attempting MQTT connection...");
 #endif

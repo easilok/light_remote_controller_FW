@@ -29,6 +29,8 @@ void setup() {
 #ifdef MQTT_ENABLE
   mqtt_init();
 #endif
+
+  AsyncDelay_StartTimer(&ledToggleTimer);
 }
 
 void loop() {
@@ -48,13 +50,13 @@ void loop() {
 
   /* LED Signal Running */
   if (!mqtt_isConnected()) {
-    if (millis() - ledToggleTimer > MQTT_CONNECT_LED) {
+    if (AsyncDelay_HasMillisElapsed(ledToggleTimer, MQTT_CONNECT_LED)) {
       if (ledState == LOW) {
         ledState = HIGH;
       } else {
         ledState = LOW;
       }
-      ledToggleTimer = millis();
+      AsyncDelay_StartTimer(&ledToggleTimer);
     }
   } else if ((wifi_isConnected()) && (mqtt_isConnected())) {
     ledState = LOW;

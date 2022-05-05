@@ -40,6 +40,7 @@ void wifi_reconnect() {
   Serial.println(WiFi.localIP());
 #endif
 
-  ledToggleTimer = millis();
+  // TODO - This handling must be only in this file
+  AsyncDelay_StartTimer(&ledToggleTimer);
 #endif
 }

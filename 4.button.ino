@@ -18,6 +18,7 @@ unsigned long debounceTimer = 0;
 void button_init() {
   // initialize the pushbutton pin as an input
   pinMode(BUTTON_COMMAND, INPUT);
+  AsyncDelay_StartTimer(&debounceTimer);
 }
 
 void button_read_command() {
@@ -38,7 +39,7 @@ void button_read_command() {
       break;
     case BTN_READ_WAIT_PRESS:
       if (!digitalRead(BUTTON_COMMAND)) {
-        debounceTimer = millis();
+        AsyncDelay_StartTimer(&debounceTimer);
         buttonReadFSM = BTN_READ_DEBOUNCE_PRESS;
 #ifdef DEBUG_SERIAL_PRINT
         Serial.println("Button pressed");
@@ -52,7 +53,7 @@ void button_read_command() {
         Serial.println("Button released");
 #endif
       }
-      if (millis() - debounceTimer > DEBOUNCE_TIMEOUT) {
+      if (AsyncDelay_HasMillisElapsed(debounceTimer, DEBOUNCE_TIMEOUT)) {
         buttonReadFSM = BTN_READ_PRESSED;
 #ifdef DEBUG_SERIAL_PRINT
         Serial.println("Button pressed debounced");
@@ -72,7 +73,7 @@ void button_read_command() {
 #ifdef DEBUG_SERIAL_PRINT
         Serial.println("Button released");
 #endif
-        debounceTimer = millis();
+        AsyncDelay_StartTimer(&debounceTimer);
         buttonReadFSM = BTN_READ_DEBOUNCE_UNPRESS;
       }
       break;
@@ -83,7 +84,7 @@ void button_read_command() {
 #endif
         buttonReadFSM = BTN_READ_WAIT_UNPRESS;
       }
-      if (millis() - debounceTimer > DEBOUNCE_TIMEOUT) {
+      if (AsyncDelay_HasMillisElapsed(debounceTimer, DEBOUNCE_TIMEOUT)) {
         buttonReadFSM = BTN_READ_WAIT_PRESS;
 #ifdef DEBUG_SERIAL_PRINT
         Serial.println("Button released debounced");

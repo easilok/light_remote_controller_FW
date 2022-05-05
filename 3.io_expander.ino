@@ -31,6 +31,7 @@ void pcf8574_init (void) {
   for(int i = 0;i < IO_EXPANDER_PIN_COUNT;i++) {
     pcf8574.pinMode(i, INPUT);
   }
+  AsyncDelay_StartTimer(&standByTimer);
 #ifdef DEBUG_SERIAL_PRINT
   Serial.print("Init pcf8574...");
 #endif
@@ -49,11 +50,11 @@ void pcf8574_manage(void) {
 #ifdef IO_EXPANDER_INTERRUPT_ENABLE
   if (keyPressed) {
 #else
-  if (millis() - standByTimer > STANDBY_TIME_INTERVAL) {
+  if (AsyncDelay_HasMillisElapsed(standByTimer, STANDBY_TIME_INTERVAL)) {
 #endif
     keyPressed = false;
     PCF8574::DigitalInput val = pcf8574.digitalReadAll();
-    standByTimer = millis();
+    AsyncDelay_StartTimer(&standByTimer);
 #ifdef DEBUG_SERIAL_PRINT
     Serial.print("KEY0 ");
     if (val.p0==HIGH) {
