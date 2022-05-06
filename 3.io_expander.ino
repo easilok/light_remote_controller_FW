@@ -11,17 +11,30 @@ unsigned long standByTimer = 0;
 // Function interrupt pending changes
 bool keyPressed = false;
 
+typedef struct  {
+  bool previousState;
+  bool pendingChange;
+  bool enable;
+} BUTTON_DATA_t;
+
+BUTTON_DATA_t buttonsData[BUTTON_COUNT];
+
 #ifdef IO_EXPANDER_INTERRUPT_ENABLE
 // Definition of the interrupt function
 void ICACHE_RAM_ATTR  keyPressedOnPCF8574(){
 #ifdef DEBUG_SERIAL_PRINT
-  Serial.println("keyPressedOnPCF8574");
+  /* Serial.println("keyPressedOnPCF8574"); */
 #endif
   keyPressed = true;
 }
 #endif
 
 void pcf8574_init (void) {
+
+  memset(&buttonsData, 0, sizeof(BUTTON_DATA_t) * BUTTON_COUNT);
+  buttonsData[0].enable = true;
+  buttonsData[1].enable = true;
+  buttonsData[2].enable = false;
 
 #ifdef IO_EXPANDER_INTERRUPT_ENABLE
   pinMode(IO_EXPANDER_INTERRUPTED_PIN, INPUT_PULLUP);
@@ -46,6 +59,40 @@ void pcf8574_init (void) {
 	}
 }
 
+void pcf8574_process_state(uint8_t pin_state, uint8_t index) {
+  if (index >= BUTTON_COUNT) {
+    return;
+  }
+
+  if (buttonsData[index].previousState != pin_state) {
+    if ((pin_state == BUTTON_PRESSED_STATE) && buttonsData[index].enable){
+    /* if (pin_state == BUTTON_PRESSED_STATE) { */
+      buttonsData[index].pendingChange = true; 
+    }
+    buttonsData[index].previousState = pin_state;
+  }
+}
+
+bool pcf8574_get_pending_state(uint8_t index) {
+  if (index >= BUTTON_COUNT) {
+    return false;
+  }
+
+  if (!buttonsData[index].enable) {
+    return false;
+  }
+
+  return buttonsData[index].pendingChange;
+}
+
+void pcf8574_clear_pending_state(uint8_t index) {
+  if (index >= BUTTON_COUNT) {
+    return;
+  }
+
+  buttonsData[index].pendingChange = false;
+}
+
 void pcf8574_manage(void) {
 #ifdef IO_EXPANDER_INTERRUPT_ENABLE
   if (keyPressed) {
@@ -55,54 +102,30 @@ void pcf8574_manage(void) {
     keyPressed = false;
     PCF8574::DigitalInput val = pcf8574.digitalReadAll();
     AsyncDelay_StartTimer(&standByTimer);
+    pcf8574_process_state(val.p0, 0);
+    pcf8574_process_state(val.p1, 1);
+    pcf8574_process_state(val.p2, 2);
+    pcf8574_process_state(val.p3, 3);
+    pcf8574_process_state(val.p4, 4);
+    pcf8574_process_state(val.p5, 5);
+    pcf8574_process_state(val.p6, 6);
+    pcf8574_process_state(val.p7, 7);
 #ifdef DEBUG_SERIAL_PRINT
-    Serial.print("KEY0 ");
-    if (val.p0==HIGH) {
-      Serial.println("PRESSED");
-    } else {
-      Serial.println("UNPRESSED");
-    }
-    Serial.print("KEY1 ");
-    if (val.p1==HIGH) {
-      Serial.println("PRESSED");
-    } else {
-      Serial.println("UNPRESSED");
-    }
-    Serial.print("KEY2 ");
-    if (val.p2==HIGH) {
-      Serial.println("PRESSED");
-    } else {
-      Serial.println("UNPRESSED");
-    }
-    Serial.print("KEY3 ");
-    if (val.p3==HIGH) {
-      Serial.println("PRESSED");
-    } else {
-      Serial.println("UNPRESSED");
-    }
-    Serial.print("KEY4 ");
-    if (val.p4==HIGH) {
-      Serial.println("PRESSED");
-    } else {
-      Serial.println("UNPRESSED");
-    }
-    Serial.print("KEY5 ");
-    if (val.p5==HIGH) {
-      Serial.println("PRESSED");
-    } else {
-      Serial.println("UNPRESSED");
-    }
-    Serial.print("KEY6 ");
-    if (val.p6==HIGH) {
-      Serial.println("PRESSED");
-    } else {
-      Serial.println("UNPRESSED");
-    }
-    Serial.print("KEY7 ");
-    if (val.p7==HIGH) {
-      Serial.println("PRESSED");
-    } else {
-      Serial.println("UNPRESSED");
+    for (int i = 0; i < BUTTON_COUNT; i++) {
+      Serial.print("KEY");
+      Serial.print(i);
+      if (buttonsData[i].previousState == BUTTON_PRESSED_STATE) {
+        Serial.print(" PRESSED");
+      } else {
+        Serial.print(" UNPRESSED");
+      }
+      Serial.print("; Pending Change: ");
+      if (buttonsData[i].pendingChange) {
+        Serial.print("Yes");
+      } else {
+        Serial.print("No");
+      }
+      Serial.println("");
     }
 #endif
   }

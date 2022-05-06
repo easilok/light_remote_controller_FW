@@ -1,13 +1,29 @@
 #include <PubSubClient.h>
 #include "ConnectionDetails.h"
 
-
 #define MQTT_RECONNECT_STANDBY 5000
 
 #ifdef MQTT_ENABLE
 PubSubClient client(espClient);
 unsigned long mqttReconnectTimer = 0;
 #endif
+
+typedef struct  {
+  String target;
+  String value;
+  bool enable;
+} NETWORK_ACTION_t;
+
+NETWORK_ACTION_t networkActions[BUTTON_COUNT] = {
+  {MQTT_OFFICE_SWITCH_TOPIC, MQTT_SWITCH_COMMAND_VALUE, 1},
+  {MQTT_HALL_SWITCH_TOPIC, MQTT_SWITCH_COMMAND_VALUE, 1},
+  {MQTT_KITCHEN_SWITCH_TOPIC, MQTT_SWITCH_COMMAND_VALUE, 1},
+  {MQTT_WC_SWITCH_TOPIC, MQTT_SWITCH_COMMAND_VALUE, 0},
+  {"", MQTT_SWITCH_COMMAND_VALUE, 0},
+  {"", MQTT_SWITCH_COMMAND_VALUE, 0},
+  {"", MQTT_SWITCH_COMMAND_VALUE, 0},
+  {"", MQTT_SWITCH_COMMAND_VALUE, 0},
+};
 
 void mqtt_init() {
 #ifdef MQTT_ENABLE
@@ -20,6 +36,31 @@ void mqtt_manage() {
 #ifdef MQTT_ENABLE
   client.loop();
 #endif
+
+  for (int i = 0; i < BUTTON_COUNT; i++) {
+    if (pcf8574_get_pending_state(i)) {
+      mqtt_send_command(i);
+    }
+    pcf8574_clear_pending_state(i);
+  }
+}
+
+void mqtt_send_command(uint8_t index) {
+  if (index >= BUTTON_COUNT) {
+    return;
+  }
+
+  if (networkActions[index].enable) {
+#ifdef DEBUG_SERIAL_PRINT
+      Serial.print("Publishing on: ");
+      Serial.println(networkActions[index].target);
+#endif
+    if (!mqtt_publish(networkActions[index].target.c_str(), networkActions[index].value.c_str())) {
+#ifdef DEBUG_SERIAL_PRINT
+      Serial.println("Failed to publish command actuation");
+#endif
+    }
+  }
 }
 
 bool mqtt_isConnected() {
